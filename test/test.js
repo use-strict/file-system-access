@@ -815,6 +815,10 @@ t('commands are queued', async root => {
   assert(await getFileSize(handle) === 9)
 })
 
+t('queryPermission() returns granted', async root => {
+  assert(await root.queryPermission() === 'granted')
+})
+
 t('queryPermission({ mode: read }) returns granted', async root => {
   assert(await root.queryPermission({ mode: 'read' }) === 'granted')
 })

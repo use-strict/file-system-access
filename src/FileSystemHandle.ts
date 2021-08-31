@@ -25,7 +25,7 @@ export class FileSystemHandle {
     this[kAdapter] = adapter
   }
 
-  async queryPermission (options: FileSystemHandlePermissionDescriptor = {}) {
+  async queryPermission (options: FileSystemHandlePermissionDescriptor = { mode: 'read' }) {
     const handle = this[kAdapter]
     if (handle.queryPermission) {
       return handle.queryPermission(options)
@@ -40,7 +40,7 @@ export class FileSystemHandle {
     }
   }
 
-  async requestPermission (options: FileSystemHandlePermissionDescriptor = {}) {
+  async requestPermission (options: FileSystemHandlePermissionDescriptor = { mode: 'read' }) {
     const handle = this[kAdapter]
     if (handle.requestPermission) {
       return handle.requestPermission(options)
