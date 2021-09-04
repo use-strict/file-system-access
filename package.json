@@ -1,7 +1,7 @@
 {
-  "name": "native-file-system-adapter",
+  "name": "file-system-access",
   "version": "1.0.1",
-  "description": "Native File System Access API",
+  "description": "File System Access API implementation (ponyfill) with pluggable storage adapters via IndexedDB, Cache API, in-memory etc.",
   "browser": "./lib/es2018.js",
   "main": "./lib/node.js",
   "module": "./lib/node.js",
@@ -21,7 +21,7 @@
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/jimmywarting/native-file-system-adapter.git"
+    "url": "git+https://github.com/use-strict/file-system-access.git"
   },
   "keywords": [
     "filesystem",
@@ -35,17 +35,12 @@
     "file system access",
     "spec"
   ],
-  "author": "Jimmy Wärting",
-  "contributors": [
-    {
-      "name": "Alexandru Ciuca"
-    }
-  ],
+  "author": "Alexandru Ciuca",
   "license": "MIT",
   "bugs": {
-    "url": "https://github.com/jimmywarting/native-file-system-adapter/issues"
+    "url": "https://github.com/use-strict/file-system-access/issues"
   },
-  "homepage": "https://github.com/jimmywarting/native-file-system-adapter#readme",
+  "homepage": "https://github.com/use-strict/file-system-access#readme",
   "optionalDependencies": {
     "web-streams-polyfill": "^3.1.0"
   },
@@ -64,15 +59,5 @@
   },
   "engines": {
     "node": ">=14"
-  },
-  "funding": [
-    {
-      "type": "github",
-      "url": "https://github.com/sponsors/jimmywarting"
-    },
-    {
-      "type": "paypal",
-      "url": "https://paypal.me/jimmywarting"
-    }
-  ]
+  }
 }

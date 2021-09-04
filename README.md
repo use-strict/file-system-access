@@ -40,14 +40,14 @@ You can directly import the module using an absolute URL:
 
 ```html
 <script type="module">
-import { getOriginPrivateDirectory } from 'https://cdn.jsdelivr.net/npm/native-file-system-adapter/lib/es2018.js'
+import { getOriginPrivateDirectory } from 'https://cdn.jsdelivr.net/npm/file-system-access/lib/es2018.js'
 
 // Get a directory handle for a sandboxed virtual file system
 // same as calling navigator.storage.getDirectory()
 const dirHandle1 = await getOriginPrivateDirectory()
 
 // or use an adapter (see adapters table above for a list of available adapters)
-const dirHandle2 = await getOriginPrivateDirectory(import('https://cdn.jsdelivr.net/npm/native-file-system-adapter/lib/adapters/<adapterName>.js'))
+const dirHandle2 = await getOriginPrivateDirectory(import('https://cdn.jsdelivr.net/npm/file-system-access/lib/adapters/<adapterName>.js'))
 </script>
 ```
 
@@ -56,13 +56,13 @@ const dirHandle2 = await getOriginPrivateDirectory(import('https://cdn.jsdelivr.
 Works in Node.JS v14.8+ or in the browser, with a module bundler such as Webpack.
 
 ```
-npm i native-file-system-adapter
+npm i file-system-access
 ```
 
 ```js
-import { getOriginPrivateDirectory } from 'native-file-system-adapter'
-import indexedDbAdapter from 'native-file-system-adapter/lib/adapters/indexeddb.js'
-import nodeAdapter from 'native-file-system-adapter/lib/adapters/node.js'
+import { getOriginPrivateDirectory } from 'file-system-access'
+import indexedDbAdapter from 'file-system-access/lib/adapters/indexeddb.js'
+import nodeAdapter from 'file-system-access/lib/adapters/node.js'
 
 const dirHandle = await getOriginPrivateDirectory(indexedDbAdapter)
 const nodeDirHandle = await getOriginPrivateDirectory(nodeAdapter, './real-dir')
@@ -77,7 +77,7 @@ This is a legacy name introduced by an older `Native File System` specification 
 It is equivalent to the `navigator.storage.getDirectory()` method introduced by the later [File System Access](https://wicg.github.io/file-system-access/) spec.
 
 ```js
-import { getOriginPrivateDirectory, support } from 'native-file-system-adapter'
+import { getOriginPrivateDirectory, support } from 'file-system-access'
 
 // Uses only native implementation - same as calling navigator.storage.getDirectory()
 if (support.adapter.native) {
@@ -85,30 +85,30 @@ if (support.adapter.native) {
 }
 // Blinks old sandboxed api
 if (support.adapter.sandbox) {
-  handle = await getOriginPrivateDirectory(import('native-file-system-adapter/lib/adapters/sandbox.js'))
+  handle = await getOriginPrivateDirectory(import('file-system-access/lib/adapters/sandbox.js'))
 }
 // fast in-memory file system
-handle = await getOriginPrivateDirectory(import('native-file-system-adapter/lib/adapters/memory.js'))
+handle = await getOriginPrivateDirectory(import('file-system-access/lib/adapters/memory.js'))
 // Using indexDB
-handle = await getOriginPrivateDirectory(import('native-file-system-adapter/lib/adapters/indexeddb.js'))
+handle = await getOriginPrivateDirectory(import('file-system-access/lib/adapters/indexeddb.js'))
 // Store things in the new Cache API as request/responses (bad at mutating data)
 if (support.adapter.cache) {
-  handle = await getOriginPrivateDirectory(import('native-file-system-adapter/lib/adapters/cache.js'))
+  handle = await getOriginPrivateDirectory(import('file-system-access/lib/adapters/cache.js'))
 }
 
 // Node only variant:
-handle = await getOriginPrivateDirectory(import('native-file-system-adapter/lib/adapters/memory.js'))
-handle = await getOriginPrivateDirectory(import('native-file-system-adapter/lib/adapters/node.js'), './starting-path')
+handle = await getOriginPrivateDirectory(import('file-system-access/lib/adapters/memory.js'))
+handle = await getOriginPrivateDirectory(import('file-system-access/lib/adapters/node.js'), './starting-path')
 
 // Deno only variant:
-handle = await getOriginPrivateDirectory(import('native-file-system-adapter/src/adapters/memory.js'))
-handle = await getOriginPrivateDirectory(import('native-file-system-adapter/src/adapters/deno.js'), './starting-path')
+handle = await getOriginPrivateDirectory(import('file-system-access/src/adapters/memory.js'))
+handle = await getOriginPrivateDirectory(import('file-system-access/src/adapters/deno.js'), './starting-path')
 ```
 
 ### File and directory pickers
 
 ```js
-import { showDirectoryPicker, showOpenFilePicker } from 'native-file-system-adapter'
+import { showDirectoryPicker, showOpenFilePicker } from 'file-system-access'
 
 // The polyfilled (file input) version will turn into a memory adapter
 // You will have read & write permission on the memory adapter,
@@ -122,12 +122,12 @@ const dirHandle = await showDirectoryPicker({_preferPolyfill: boolean, ...sameOp
 ```js
 // Apply polyfill for DataTransferItem.prototype.getAsFileSystemHandle()
 
-import { polyfillDataTransferItem } from 'native-file-system-adapter'
+import { polyfillDataTransferItem } from 'file-system-access'
 await polyfillDataTransferItem();
 
 // or just use a static import
 
-import 'native-file-system-adapter/lib/polyfillDataTransferItem.js'
+import 'file-system-access/lib/polyfillDataTransferItem.js'
 
 window.ondrop = async evt => {
   evt.preventDefault()
@@ -141,7 +141,7 @@ window.ondrop = async evt => {
 ### Copy file handles to sandboxed file system
 
 ```js
-import { showOpenFilePicker, getOriginPrivateDirectory } from 'native-file-system-adapter'
+import { showOpenFilePicker, getOriginPrivateDirectory } from 'file-system-access'
 
 // request user to select a file
 const [fileHandle] = await showOpenFilePicker({
@@ -165,7 +165,7 @@ await writable.close()
 ### Save / download a file
 
 ```js
-import { showSaveFilePicker } from 'native-file-system-adapter'
+import { showSaveFilePicker } from 'file-system-access'
 
 const fileHandle = await showSaveFilePicker({
   _preferPolyfill: false,
@@ -218,7 +218,7 @@ The difference is:
  - It does not rely on some man-in-the-middle or external hosted service worker.
  - If you want to stream large data to the disk directly instead of taking up much RAM you need to set up a service worker yourself.<br>(note that it requires https - but again worker is optional)
 
-to set up a service worker you have to basically copy [the example](https://github.com/jimmywarting/native-file-system-adapter/tree/master/example/sw.js) and register it:
+to set up a service worker you have to basically copy [the example](./example/sw.js) and register it:
 
 ```js
 navigator.serviceWorker.register('sw.js')
@@ -251,4 +251,4 @@ I recommend to follow up on this links for you to learn more about the API and h
 
 ## License
 
-native-file-system-adapter is licensed under the MIT License. See `LICENSE` for details.
+file-system-access is licensed under the MIT License. See `LICENSE` for details.
