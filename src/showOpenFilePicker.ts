@@ -37,9 +37,9 @@ export async function showOpenFilePicker (opts: CustomOpenFilePickerOptions = {}
 
   const { makeFileHandlesFromFileList } = await import('./util.js')
 
-  return new Promise(resolve => {
+  return new Promise<FileSystemFileHandle[]>((resolve, reject) => {
     input.addEventListener('change', () => {
-      resolve(makeFileHandlesFromFileList(input.files!))
+      makeFileHandlesFromFileList(input.files!).then(resolve).catch(reject)
       document.body.removeChild(input)
     })
     input.click()

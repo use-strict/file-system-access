@@ -206,9 +206,11 @@ For drag and drop, the `getAsFileSystemHandle()` polyfill depends on the `File a
 
 - Storing a file handle in IndexedDB or sharing it with postMessage isn't currently possible unless you use native.
 - `showDirectoryPicker` and `showOpenFilePicker` will not throw any `AbortError`s (e.g. user cancellations) when using a fallback input element
+- `showDirectoryPicker` will return a flat hierarchy when a fallback `input` element is used and `webkitRelativePath` is not supported (e.g. mobile Safari). This can be detected by checking if the `name` attribute of the root directory handle is an empty string.
 - `showSaveFilePicker` may not actually show any prompt when using a fallback input (e.g. on Chrome the file is auto-saved to the browser's preferred download folder)
 - Cache adapter only works in secure (HTTPS) contexts
 - IndexedDB adapter may not work in some browsers in Private mode
+- Mobile Safari scrambles original file names
 
 ## A note when downloading with the polyfilled version
 

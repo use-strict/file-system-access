@@ -25,15 +25,11 @@ export async function makeDirHandleFromFileList (fileList: FileList) {
   const { FolderHandle, FileHandle } = await import('./adapters/memory.js')
   const { FileSystemDirectoryHandle } = await import('./FileSystemDirectoryHandle.js')
 
-  if (!fileList[0].webkitRelativePath) {
-    throw new Error(`File.webkitRelativePath is not supported`)
-  }
-
-  const [ rootName ] = fileList[0].webkitRelativePath.split('/', 1)
+  const rootName = fileList[0].webkitRelativePath?.split('/', 1)[0] ?? ""
   const root = new FolderHandle(rootName, false)
   for (let i = 0; i < fileList.length; i++) {
     const file = fileList[i]
-    const path = file.webkitRelativePath!.split('/')
+    const path = file.webkitRelativePath?.length ? file.webkitRelativePath.split('/') : ["", file.name]
     // Remove the root folder part
     path.shift()
     const name = path.pop()!
