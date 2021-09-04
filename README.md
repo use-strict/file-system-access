@@ -1,16 +1,18 @@
-# File System Access API Adapter (ponyfill)
+# File System Access API (ponyfill)
 
-## What is this?
+## Introduction
 
-This is a file system API that follows the [File System Access](https://wicg.github.io/file-system-access/) specification. Thanks to it we can have a unified way of handling data in all browsers and even in NodeJS & Deno in a more secure way.
+This is an implementation of the [File System Access](https://wicg.github.io/file-system-access/) specification. It is a ponyfill that uses the native browser implementation when available and falls back to a custom one otherwise. It also includes several storage adapters which can be used in the browser, but also in other environments, such as NodeJS or Deno.
 
-At a high level what we're providing is several bits:
+The library roughly contains the following:
 
 1. Ponyfills for `showDirectoryPicker`, `showOpenFilePicker` and `showSaveFilePicker`, with fallbacks to regular input elements.
 2. Ponyfills for `FileSystemFileHandle` and `FileSystemDirectoryHandle` interfaces.
 3. Ponyfill for `FileSystemWritableFileStream` to truncate and write data.
 4. An implementation of `navigator.storage.getDirectory()` (`getOriginPrivateDirectory`) which can read & write data to and from several sources called adapters, not just the browser sandboxed file system
 5. An optional polyfill for `DataTransferItem.prototype.getAsFileSystemHandle()`
+
+This package builds upon [native-file-system-adapter](https://github.com/jimmywarting/native-file-system-adapter), adding several bug fixes, updates for compliance with the latest spec, browser support improvements (especially Safari), support for bundlers, stricter error handling and more. It is fully rewritten in TypeScript and provides type-safe declarations out-of-the-box.
 
 ## File system adapters
 
@@ -51,7 +53,7 @@ const dirHandle2 = await getOriginPrivateDirectory(import('https://cdn.jsdelivr.
 
 ### Install via NPM
 
-Works in Node.JS v14.8+ or in the browser, with a module bundler such as Webpack
+Works in Node.JS v14.8+ or in the browser, with a module bundler such as Webpack.
 
 ```
 npm i native-file-system-adapter
@@ -169,14 +171,14 @@ const fileHandle = await showSaveFilePicker({
   _preferPolyfill: false,
   suggestedName: 'Untitled.png',
   types: [
-    { accept: { "image/png": [ "png" ] } },
-    { accept: { "image/jpg": [ "jpg" ] } },
-    { accept: { "image/webp": [ "webp" ] } }
+    { accept: { "image/png": [ ".png" ] } },
+    { accept: { "image/jpg": [ ".jpg" ] } },
+    { accept: { "image/webp": [ ".webp" ] } }
   ],
   excludeAcceptAllOption: false // default
 })
 
-// Look at what extension they chosen
+// Look at what extension they have chosen
 const extensionChosen = fileHandle.name.split('.').pop()
 
 const blob = {
@@ -242,6 +244,7 @@ I recommend to follow up on this links for you to learn more about the API and h
 - https://github.com/WICG/file-system-access
 
 ## Alternatives
+- [native-file-system-adapter](https://github.com/jimmywarting/native-file-system-adapter): The original implementation in vanilla JavaScript by [@jimmywarting](https://github.com//jimmywarting).
 - [browser-fs-access](https://github.com/GoogleChromeLabs/browser-fs-access) by [@tomayac](https://github.com/tomayac): A similar, more like a shim (without `getSystemDirectory`).
 - [StreamSaver](https://github.com/jimmywarting/StreamSaver.js) by [@jimmywarting](https://github.com/jimmywarting): A way to save large data to the disk directly with a writable stream <br><small>(same technique can be achieved if service worker are setup properly)</small>
 - [FileSaver](https://github.com/eligrey/FileSaver.js) by [@eligrey](https://github.com/eligrey): One among the first libs to save blobs to the disk
