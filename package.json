@@ -17,7 +17,7 @@
     "build": "rm -rf lib && tsc -p . && node copy-polyfill.js",
     "check-no-top-level-await": "tsc -p . --noEmit --target es2016",
     "watch": "tsc -w -p .",
-    "deploy-gh-pages": "npm run build && rm -rf dist && mkdir dist && cp -r lib test example README.md dist/ && gh-pages -d dist -m 'Deploy gh-pages [ci skip]'"
+    "deploy-gh-pages": "npm run build && rm -rf gh-dist && mkdir gh-dist && cp -r lib test example README.md gh-dist/ && gh-pages -d gh-dist -m 'Deploy gh-pages [ci skip]'"
   },
   "repository": {
     "type": "git",
