@@ -5,6 +5,7 @@
   "browser": "./lib/es2018.js",
   "main": "./lib/node.js",
   "module": "./lib/node.js",
+  "types": "./lib/node.d.ts",
   "directories": {
     "example": "example"
   },
