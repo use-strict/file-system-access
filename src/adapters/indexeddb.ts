@@ -261,17 +261,21 @@ class FolderHandle implements FileSystemFolderHandleAdapter {
         if (entry && !entry[1]) reject(new DOMException(...MISMATCH))
         if (!entry && !opts.create) reject(new DOMException(...GONE))
         if (!entry && opts.create) {
-          const q = table.put(new File([], name))
-          q.onsuccess = () => {
-            const id = q.result
-            entries[name] = [id, true]
-            const query = table.put(entries, this._id)
-            query.onsuccess = () => {
-              resolve(new FileHandle(this._db, id, name))
+          try {
+            const q = table.put(new File([], name))
+            q.onsuccess = () => {
+              const id = q.result
+              entries[name] = [id, true]
+              const query = table.put(entries, this._id)
+              query.onsuccess = () => {
+                resolve(new FileHandle(this._db, id, name))
+              }
+              query.onerror = evt => reject((evt.target as IDBRequest).error)
             }
-            query.onerror = evt => reject((evt.target as IDBRequest).error)
+            q.onerror = evt => reject((evt.target as IDBRequest).error)
+          } catch (e) {
+            reject(e);
           }
-          q.onerror = evt => reject((evt.target as IDBRequest).error)
         }
       }
       query.onerror = evt => reject((evt.target as IDBRequest).error)
