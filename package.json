@@ -1,6 +1,6 @@
 {
   "name": "file-system-access",
-  "version": "1.0.2",
+  "version": "1.0.3",
   "description": "File System Access API implementation (ponyfill) with pluggable storage adapters via IndexedDB, Cache API, in-memory etc.",
   "browser": "./lib/es2018.js",
   "main": "./lib/node.js",
