@@ -3,7 +3,7 @@
 import { Adapter, FileSystemFileHandleAdapter, FileSystemFolderHandleAdapter, WriteChunk } from '../interfaces.js'
 import { errors, isChunkObject } from '../util.js'
 
-const { INVALID, GONE, MISMATCH, MOD_ERR, SYNTAX } = errors
+const { INVALID, GONE, MISMATCH, MOD_ERR, SYNTAX, ABORT } = errors
 
 class Sink implements UnderlyingSink<WriteChunk> {
   private db: IDBDatabase
@@ -29,8 +29,7 @@ class Sink implements UnderlyingSink<WriteChunk> {
           : reject(new DOMException(...GONE))
       }
       tx.oncomplete = () => resolve()
-      tx.onabort = reject
-      tx.onerror = reject
+      setupTxErrorHandler(tx, reject)
     })
 
     if (isChunkObject(chunk)) {
@@ -110,8 +109,7 @@ class Sink implements UnderlyingSink<WriteChunk> {
           : reject(new DOMException(...GONE))
       }
       tx.oncomplete = () => resolve()
-      tx.onabort = reject
-      tx.onerror = reject
+      setupTxErrorHandler(tx, reject)
     })
   }
 }
@@ -136,7 +134,9 @@ class FileHandle implements FileSystemFileHandleAdapter {
 
   async getFile () {
     const file = await new Promise<File>((resolve, reject) => {
-      const req = store(this._db)[1].get(this._id)
+      const [tx, table] = store(this._db)
+      setupTxErrorHandler(tx, reject)
+      const req = table.get(this._id)
       req.onsuccess = evt => resolve((evt.target as IDBRequest).result)
       req.onerror = evt => reject((evt.target as IDBRequest).error)
     })
@@ -159,8 +159,18 @@ function store (db: IDBDatabase): [IDBTransaction, IDBObjectStore] {
   return [tx, tx.objectStore('entries')]
 }
 
+function setupTxErrorHandler(tx: IDBTransaction, onerror: (e: any) => void) {
+  tx.onerror = (e) => {
+    onerror((e.target as IDBRequest).transaction?.error || (e.target as IDBRequest | IDBTransaction).error)
+  }
+  tx.onabort = (e) => {
+    onerror((e.target as IDBTransaction).error || new DOMException(...ABORT))
+  }
+}
+
 function rimraf (
   store: IDBObjectStore,
+  onNonEmptyDir: () => void,
   result: Record<string, [id: IDBValidKey, isFile: boolean]>,
   toDelete?: Record<string, [id: IDBValidKey, isFile: boolean]>,
   recursive = true
@@ -168,12 +178,12 @@ function rimraf (
   for (const [id, isFile] of Object.values(toDelete || result)) {
     if (isFile) store.delete(id)
     else if (recursive) {
-      store.get(id).onsuccess = (evt) => rimraf(store, (evt.target as IDBRequest).result)
+      store.get(id).onsuccess = (evt) => rimraf(store, onNonEmptyDir, (evt.target as IDBRequest).result)
       store.delete(id)
     } else {
       store.get(id).onsuccess = (evt) => {
         if (Object.keys((evt.target as IDBRequest).result).length !== 0) {
-          (evt.target as IDBRequest).transaction!.abort()
+          onNonEmptyDir();
         } else {
           store.delete(id)
         }
@@ -200,7 +210,9 @@ class FolderHandle implements FileSystemFolderHandleAdapter {
 
   async * entries () {
     const entries = await new Promise<Entries>((resolve, reject) => {
-      const getReq = store(this._db)[1].get(this._id)
+      const [tx, table] = store(this._db)
+      setupTxErrorHandler(tx, reject)
+      const getReq = table.get(this._id)
       getReq.onsuccess = evt => resolve((evt.target as IDBRequest).result)
       getReq.onerror = evt => reject((evt.target as IDBRequest).error)
     })
@@ -219,10 +231,12 @@ class FolderHandle implements FileSystemFolderHandleAdapter {
 
   getDirectoryHandle (name: string, opts: FileSystemGetDirectoryOptions = {}) {
     return new Promise<FolderHandle>((resolve, reject) => {
-      const table = store(this._db)[1]
+      const [tx, table] = store(this._db)
+      setupTxErrorHandler(tx, reject)
       const req = table.get(this._id)
       req.onsuccess = () => {
         const entries = req.result
+        if (!entries) return reject(new DOMException(...GONE))
         const entry = entries[name]
         if (entry) {
           entry[1] // isFile?
@@ -252,10 +266,12 @@ class FolderHandle implements FileSystemFolderHandleAdapter {
 
   getFileHandle (name: string, opts: FileSystemGetFileOptions = {}) {
     return new Promise<FileHandle>((resolve, reject) => {
-      const table = store(this._db)[1]
+      const [tx, table] = store(this._db)
+      setupTxErrorHandler(tx, reject)
       const query = table.get(this._id)
       query.onsuccess = () => {
         const entries = query.result
+        if (!entries) return reject(new DOMException(...GONE))
         const entry = entries[name]
         if (entry && entry[1]) resolve(new FileHandle(this._db, entry[0], name))
         if (entry && !entry[1]) reject(new DOMException(...MISMATCH))
@@ -284,23 +300,31 @@ class FolderHandle implements FileSystemFolderHandleAdapter {
 
   async removeEntry (name: string, opts: FileSystemRemoveOptions) {
     return new Promise<void>((resolve, reject) => {
+      let nonEmptyDirFound = false
       const [tx, table] = store(this._db)
       const cwdQ = table.get(this._id)
       cwdQ.onsuccess = (evt) => {
         const cwd = cwdQ.result
+        if (!cwd) throw new DOMException(...GONE)
         const toDelete = { _: cwd[name] }
         if (!toDelete._) {
           return reject(new DOMException(...GONE))
         }
         delete cwd[name]
         table.put(cwd, this._id)
-        rimraf((evt.target as IDBRequest).source as IDBObjectStore, (evt.target as IDBRequest).result, toDelete, !!opts.recursive)
+        rimraf(
+          (evt.target as IDBRequest).source as IDBObjectStore,
+          () => {
+            nonEmptyDirFound = true;
+            (evt.target as IDBRequest).transaction!.abort()
+          },
+          (evt.target as IDBRequest).result,
+          toDelete,
+          !!opts.recursive
+        )
       }
       tx.oncomplete = () => resolve()
-      tx.onerror = reject
-      tx.onabort = () => {
-        reject(new DOMException(...MOD_ERR))
-      }
+      setupTxErrorHandler(tx, e => reject(nonEmptyDirFound ? new DOMException(...MOD_ERR) : e));
     })
   }
 }
