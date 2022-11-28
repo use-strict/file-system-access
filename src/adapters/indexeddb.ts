@@ -137,7 +137,9 @@ class FileHandle implements FileSystemFileHandleAdapter {
       const [tx, table] = store(this._db)
       setupTxErrorHandler(tx, reject)
       const req = table.get(this._id)
-      req.onsuccess = evt => resolve((evt.target as IDBRequest).result)
+      req.onsuccess = evt => {
+        tx.oncomplete = () => resolve((evt.target as IDBRequest).result)
+      }
       req.onerror = evt => reject((evt.target as IDBRequest).error)
     })
     if (!file) throw new DOMException(...GONE)
@@ -213,7 +215,9 @@ class FolderHandle implements FileSystemFolderHandleAdapter {
       const [tx, table] = store(this._db)
       setupTxErrorHandler(tx, reject)
       const getReq = table.get(this._id)
-      getReq.onsuccess = evt => resolve((evt.target as IDBRequest).result)
+      getReq.onsuccess = evt => {
+        tx.oncomplete = () => resolve((evt.target as IDBRequest).result)
+      }
       getReq.onerror = evt => reject((evt.target as IDBRequest).error)
     })
     if (!entries) throw new DOMException(...GONE)
@@ -239,9 +243,11 @@ class FolderHandle implements FileSystemFolderHandleAdapter {
         if (!entries) return reject(new DOMException(...GONE))
         const entry = entries[name]
         if (entry) {
-          entry[1] // isFile?
-            ? reject(new DOMException(...MISMATCH))
-            : resolve(new FolderHandle(this._db, entry[0], name))
+          if (entry[1]) { // isFile?
+            reject(new DOMException(...MISMATCH))
+          } else {
+            tx.oncomplete = () => resolve(new FolderHandle(this._db, entry[0], name))
+          }
         } else {
           if (opts.create) {
             const addReq = table.add({})
@@ -249,7 +255,9 @@ class FolderHandle implements FileSystemFolderHandleAdapter {
               const id = (evt.target as IDBRequest).result
               entries[name] = [id, false]
               const putReq = table.put(entries, this._id)
-              putReq.onsuccess = () => resolve(new FolderHandle(this._db, id, name))
+              putReq.onsuccess = () => {
+                tx.oncomplete = () => resolve(new FolderHandle(this._db, id, name))
+              }
               putReq.onerror = evt => reject((evt.target as IDBRequest).error)
             }
             addReq.onerror = evt => reject((evt.target as IDBRequest).error)
@@ -273,7 +281,7 @@ class FolderHandle implements FileSystemFolderHandleAdapter {
         const entries = query.result
         if (!entries) return reject(new DOMException(...GONE))
         const entry = entries[name]
-        if (entry && entry[1]) resolve(new FileHandle(this._db, entry[0], name))
+        if (entry && entry[1]) tx.oncomplete = () => resolve(new FileHandle(this._db, entry[0], name))
         if (entry && !entry[1]) reject(new DOMException(...MISMATCH))
         if (!entry && !opts.create) reject(new DOMException(...GONE))
         if (!entry && opts.create) {
@@ -284,7 +292,7 @@ class FolderHandle implements FileSystemFolderHandleAdapter {
               entries[name] = [id, true]
               const query = table.put(entries, this._id)
               query.onsuccess = () => {
-                resolve(new FileHandle(this._db, id, name))
+                tx.oncomplete = () => resolve(new FileHandle(this._db, id, name))
               }
               query.onerror = evt => reject((evt.target as IDBRequest).error)
             }
