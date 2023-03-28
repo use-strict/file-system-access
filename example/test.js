@@ -172,11 +172,29 @@ async function init () {
       continue
     }
     const root = driver.value
-    await cleanupSandboxedFileSystem(root)
+    let errorState = false
+    try {
+      await cleanupSandboxedFileSystem(root)
+    } catch (e) {
+      console.error(e)
+      errorState = true
+    }
     const total = performance.now()
     for (var i = 0; i < tests.length; i++) {
       const test = tests[i]
-      await cleanupSandboxedFileSystem(root)
+      if (!errorState) {
+        try {
+          await cleanupSandboxedFileSystem(root)
+        } catch (e) {
+          console.error(e)
+          errorState = true
+        }
+      }
+      if (errorState) {
+        tBody.rows[i].cells[j].innerText = '⛔'
+        tBody.rows[i].cells[j].title = 'Skipped'
+        continue
+      }
       const t = performance.now()
       await test.fn(root).then(() => {
         const time = (performance.now() - t).toFixed(3)

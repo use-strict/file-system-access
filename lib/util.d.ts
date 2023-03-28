@@ -10,6 +10,7 @@ export declare const errors: {
     MISMATCH: string[];
     MOD_ERR: string[];
     SYNTAX: (m: string) => string[];
+    ABORT: string[];
     SECURITY: string[];
     DISALLOWED: string[];
 };

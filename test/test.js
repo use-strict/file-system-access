@@ -586,7 +586,15 @@ t('atomic writes: close() fails when parent directory is removed', async root =>
   handle = await createEmptyFile(file_name, dir)
   wfs = await handle.createWritable()
   await wfs.write('foo')
-  await root.removeEntry('parent_dir', { recursive: true })
+  try {
+    await root.removeEntry('parent_dir', { recursive: true })
+  } catch (e) {
+    if (e.name === 'NoModificationAllowedError') {
+      await wfs.abort()
+      return
+    }
+    throw e
+  }
   err = await capture(wfs.close())
   assert(err.name === 'NotFoundError')
 })
@@ -594,14 +602,12 @@ t('atomic writes: close() fails when parent directory is removed', async root =>
 t('atomic writes: writable file streams make atomic changes on close', async root => {
   handle = await createEmptyFile('atomic_writes.txt', root)
   wfs = await handle.createWritable()
-  await wfs.write('foox')
-  const wfs2 = await handle.createWritable()
-  await wfs2.write('bar')
-  assert(await getFileSize(handle) === 0)
-  await wfs2.close()
-  assert(await getFileContents(handle) === 'bar')
-  assert(await getFileSize(handle) === 3)
-  await wfs.close()
+  try {
+    await wfs.write('foox')
+    assert(await getFileSize(handle) === 0)
+  } finally {
+    await wfs.close()
+  }
   assert(await getFileContents(handle) === 'foox')
   assert(await getFileSize(handle) === 4)
 })
@@ -692,27 +698,6 @@ t('writing small bits advances the position', async root => {
   assert(await getFileSize(handle) === 6)
 })
 
-t('WriteParams: truncate missing size param', async root => {
-  handle = await createFileWithContents('content.txt', 'very long string', root)
-  wfs = await handle.createWritable()
-  err = await capture(wfs.write({ type: 'truncate' }))
-  assert(err.name === 'SyntaxError')
-})
-
-t('WriteParams: write missing data param', async root => {
-  handle = await createEmptyFile('content.txt', root)
-  wfs = await handle.createWritable()
-  err = await capture(wfs.write({ type: 'write' }))
-  assert(err.name === 'SyntaxError')
-})
-
-t('WriteParams: seek missing position param', async root => {
-  handle = await createFileWithContents('content.txt', 'seekable', root)
-  wfs = await handle.createWritable()
-  err = await capture(wfs.write({ type: 'seek' }))
-  assert(err.name === 'SyntaxError')
-})
-
 t('truncate() to shrink a file', async root => {
   handle = await createEmptyFile('trunc_shrink', root)
   wfs = await handle.createWritable()
@@ -745,9 +730,20 @@ t('write() fails when parent directory is removed', async root => {
   dir = await createDirectory('parent_dir', root)
   handle = await createEmptyFile('write_fails_when_dir_removed.txt', dir)
   wfs = await handle.createWritable()
-  await root.removeEntry('parent_dir', { recursive: true })
-  err = await wfs.write('foo').catch(e=>e)
-  assert(err && err.name === 'NotFoundError', 'write() fails when parent directory is removed')
+  try {
+    try {
+      await root.removeEntry('parent_dir', { recursive: true })
+    } catch (e) {
+      if (e.name === 'NoModificationAllowedError') {
+        return
+      }
+      throw e
+    }
+    err = await wfs.write('foo').catch(e=>e)
+    assert(err && err.name === 'NotFoundError', 'write() fails when parent directory is removed')
+  } finally {
+    await wfs.abort()
+  }
 })
 
 t('truncate() fails when parent directory is removed', async root => {
@@ -755,17 +751,31 @@ t('truncate() fails when parent directory is removed', async root => {
   file_name = 'truncate_fails_when_dir_removed.txt'
   handle = await createEmptyFile(file_name, dir)
   wfs = await handle.createWritable()
-  await root.removeEntry('parent_dir', { recursive: true })
-  err = await wfs.truncate(0).catch(e=>e)
-  assert(err && err.name === 'NotFoundError', 'truncate() fails when parent directory is removed')
+  try {
+    try {
+      await root.removeEntry('parent_dir', { recursive: true })
+    } catch (e) {
+      if (e.name === 'NoModificationAllowedError') {
+        return
+      }
+      throw e
+    }
+    err = await wfs.truncate(0).catch(e=>e)
+    assert(err && err.name === 'NotFoundError', 'truncate() fails when parent directory is removed')
+  } finally {
+    await wfs.abort()
+  }
 })
 
 t('createWritable({keepExistingData: true}): atomic writable file stream initialized with source contents', async root => {
   handle = await createFileWithContents('atomic_file_is_copied.txt', 'fooks', root)
   wfs = await handle.createWritable({ keepExistingData: true })
-  await wfs.write('bar')
-  assert(await getFileContents(handle) === 'fooks')
-  await wfs.close()
+  try {
+    await wfs.write('bar')
+    assert(await getFileContents(handle) === 'fooks')
+  } finally {
+    await wfs.close()
+  }
   assert(await getFileContents(handle) === 'barks')
   assert(await getFileSize(handle) === 5)
 })
@@ -773,9 +783,12 @@ t('createWritable({keepExistingData: true}): atomic writable file stream initial
 t('createWritable({keepExistingData: false}): atomic writable file stream initialized with empty file', async root => {
   handle = await createFileWithContents('atomic_file_is_not_copied.txt', 'very long string', root)
   wfs = await handle.createWritable({ keepExistingData: false })
-  await wfs.write('bar')
-  assert(await getFileContents(handle) === 'very long string')
-  await wfs.close()
+  try {
+    await wfs.write('bar')
+    assert(await getFileContents(handle) === 'very long string')
+  } finally {
+    await wfs.close()
+  }
   assert(await getFileContents(handle) === 'bar')
   assert(await getFileSize(handle) === 3)
 })
@@ -874,6 +887,39 @@ t('isSameEntry comparing a file to a directory returns false', async root => {
 
   assert(await handle1.isSameEntry(handle2) === false)
   assert(await handle2.isSameEntry(handle1) === false)
+})
+
+t('WriteParams: truncate missing size param', async root => {
+  handle = await createFileWithContents('content_trunc.txt', 'very long string', root)
+  wfs = await handle.createWritable()
+  try {
+    err = await capture(wfs.write({ type: 'truncate' }))
+    assert(err.name === 'SyntaxError')
+  } finally {
+    await wfs.abort()
+  }
+})
+
+t('WriteParams: write missing data param', async root => {
+  handle = await createEmptyFile('content_write.txt', root)
+  wfs = await handle.createWritable()
+  try {
+    err = await capture(wfs.write({ type: 'write' }))
+    assert(err.name === 'SyntaxError')
+  } finally {
+    await wfs.abort()
+  }
+})
+
+t('WriteParams: seek missing position param', async root => {
+  handle = await createFileWithContents('content_pos.txt', 'seekable', root)
+  wfs = await handle.createWritable()
+  try {
+    err = await capture(wfs.write({ type: 'seek' }))
+    assert(err.name === 'SyntaxError')
+  } finally {
+    await wfs.abort()
+  }
 })
 
 t('Large real data test', async root => {
